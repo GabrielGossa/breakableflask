@@ -1,0 +1,42 @@
+name: CI + Reports
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+
+jobs:
+  test-and-reports:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest coverage pip-audit
+
+      - name: Generate reports
+        run: |
+          mkdir -p reports
+          pytest -q --junitxml=reports/junit.xml || true
+          coverage run -m pytest -q || true
+          coverage xml -o reports/coverage.xml || true
+          coverage html -d reports/coverage_html || true
+          pip-audit -f json -o reports/pip-audit.json || true
+
+      - name: Upload reports artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: breakableflask-reports
+          path: reports/
+          retention-days: 30
